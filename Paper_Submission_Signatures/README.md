@@ -1,0 +1,342 @@
+# Paper Submission
+
+Two Python scripts that turn a raw database export of signatures into
+PDFs ready for paper submission:
+
+1. **`split_signatures_into_folders.py`** — splits the export into Word
+   documents of 1000 signatures each (10 rows per landscape page), and
+   writes them into `signatures_docx/`. Each page footer reads
+   `Стр. X, папка Y` and `Сдружение „Невидими животни"`.
+2. **`convert_docx_to_pdf.py`** — converts every `.docx` in
+   `signatures_docx/` into a `.pdf` in `signatures_pdf/`, skipping any
+   already-converted file.
+
+Both output folders are created automatically — you don't have to make
+them by hand.
+
+This workflow is independent of the book-of-initials one — you only
+need what's listed below.
+
+---
+
+## About this code
+
+This toolkit was written with help from an AI assistant (Claude by
+Anthropic) and reviewed by a human. The code is intentionally written
+to be readable by people who aren't programmers.
+
+If anything here is unclear, if you want to verify how a script works,
+or if you have a question this README doesn't answer — paste the
+relevant code or text into an AI assistant (Claude, ChatGPT, etc.) and
+ask. The AI can explain how each part works or help you adapt it.
+
+The sample data is synthetic and anonymised and contains no real personal information in compliance with GDPR.
+
+---
+
+## Quick start
+
+1. Install Python 3.9+ from <https://www.python.org/downloads/>
+   (on Windows, tick *"Add Python to PATH"* during installation).
+2. Install the tool that does the .docx → PDF conversion in step 2:
+   - **Windows / macOS:** Microsoft Word (the `docx2pdf` package
+     drives it).
+   - **Linux:** LibreOffice — `sudo apt install libreoffice`. On Linux
+     the script uses LibreOffice in headless mode; `docx2pdf` and
+     Microsoft Word are **not** used or required.
+3. Open PowerShell (Windows) or Terminal (macOS/Linux) **in this
+   folder** and install the Python dependencies. A virtual environment
+   is recommended on every OS and is **required on most current Linux
+   distributions** (Debian/Ubuntu/Mint 24+), which block installing
+   into the system Python:
+
+   **Linux / macOS:**
+
+       python3 -m venv .venv
+       source .venv/bin/activate
+       pip install -r requirements.txt
+
+   **Windows (PowerShell):**
+
+       python -m venv .venv
+       .\.venv\Scripts\Activate.ps1
+       pip install -r requirements.txt
+
+   Activate the environment once per terminal session (run the
+   `activate` line again in a new terminal) — you'll see `(.venv)` at
+   the start of your prompt when it's active.
+
+   > If you prefer not to use a virtual environment on Linux and
+   > understand the risk, you can instead run
+   > `pip install -r requirements.txt --break-system-packages`, but the
+   > virtual environment above is the clean, recommended approach.
+
+4. Put your CSV `Signatures_from_the_database_raw.csv` next to the
+   scripts and run step 1 (with the virtual environment active):
+
+       python split_signatures_into_folders.py
+
+   This creates `signatures_docx/` and fills it with one `.docx`
+   per 1000 signatures. On average it takes 13 minutes for the 110 files.
+
+5. Run step 2:
+
+       python convert_docx_to_pdf.py
+
+   This creates `signatures_pdf/` and fills it with one `.pdf` per
+   `.docx` from step 1. Already-converted files are skipped, so it's
+   safe to re-run after adding more signatures. Timing depends on the
+   conversion backend: on Linux (LibreOffice) it takes roughly 5
+   minutes for the ~110 files (about 2–3 seconds each); on
+   Windows/macOS (Microsoft Word) it is slower, on the order of 40
+   minutes, because Word has a much higher start-up cost per document.
+
+
+
+
+---
+
+## The two steps in detail
+
+### Step 1 — split signatures into submission documents
+
+Place `Signatures_from_the_database_raw.csv` (the unmodified database
+export, headers and all) next to the scripts. The script auto-detects
+the separator and encoding.
+
+Run:
+
+```
+python split_signatures_into_folders.py
+```
+
+For every 1000 signatures the script creates one Word document in
+`signatures_docx/`, named:
+
+```
+signatures_docx/Папка 1 с подписи от <first-id> до <last-id>.docx
+signatures_docx/Папка 2 с подписи от <first-id> до <last-id>.docx
+…
+```
+
+Each landscape page contains 10 rows. The footer shows a page number
+that runs *continuously across all folders* (`Стр. 1, папка 1` …
+`Стр. 100, папка 1`, then `Стр. 101, папка 2` …) followed by the
+organisation name.
+
+### Step 2 — convert the .docx files to PDF
+
+Once step 1 has produced the `.docx` files in `signatures_docx/`, run:
+
+```
+python convert_docx_to_pdf.py
+```
+
+The script creates `signatures_pdf/` if it doesn't exist, converts
+every `.docx` from `signatures_docx/` and writes the matching `.pdf`
+into `signatures_pdf/`. Any file whose `.pdf` already exists is
+skipped, so this is safe to re-run.
+
+The conversion backend is chosen automatically for your platform:
+Microsoft Word (via `docx2pdf`) on Windows and macOS, and LibreOffice
+in headless mode on Linux. Either way the pending files are converted
+in a single batch so the converter starts only once.
+
+---
+
+## Customising the scripts
+
+Both scripts begin with a `# Configuration` block of `UPPER_CASE`
+variables. Edit, save, and re-run.
+
+**`split_signatures_into_folders.py`** exposes:
+
+- `INPUT_CSV` — the CSV file name
+- `OUTPUT_DOCX_FOLDER` — where the `.docx` files are written
+  (default `"signatures_docx"`)
+- `ROWS_PER_FILE`, `ROWS_PER_PAGE` — grouping (defaults 1000 and 10)
+- `PAGE_WIDTH_IN`, `PAGE_HEIGHT_IN` and the four margin constants —
+  page layout
+- `ROW_HEIGHT_IN` — height of each table row in inches
+- `BODY_FONT`, `FOOTER_FONT`, `BODY_FONT_SIZE_PT` — fonts
+- `ORGANIZATION_NAME` — text printed at the bottom of every page
+- `DEFAULT_COLUMN_WIDTHS_IN` — preset widths tuned for 6 columns,
+  auto-scaled to fit the page
+
+**`convert_docx_to_pdf.py`** exposes:
+
+- `INPUT_FOLDER` — defaults to `"signatures_docx"`
+- `OUTPUT_FOLDER` — defaults to `"signatures_pdf"`
+
+If you change the folder names in step 1, change them to match in
+step 2.
+
+---
+
+## Performance
+
+The slow part of this workflow is the .docx → .pdf conversion, because
+the converter (Microsoft Word on Windows/macOS, LibreOffice on Linux)
+has to render each document, and starting the converter has a cost.
+
+`convert_docx_to_pdf.py` converts **every pending file in a single
+batch**: it stages the pending .docx files in a temporary folder and
+converts them in one shot, so the converter starts once rather than
+once per file.
+
+How much this batching helps depends heavily on the platform:
+
+- **Windows / macOS (Microsoft Word):** Word has a high start-up cost
+  (several seconds) and `docx2pdf` starts it afresh for every
+  per-file call. Batching amortises that start-up over the whole run,
+  so it is typically **3–10× faster** than one call per file.
+- **Linux (LibreOffice):** LibreOffice's start-up cost is comparatively
+  small, so per-file and batch runs come out **roughly equal** — the
+  actual per-document rendering (~2–3 s/file) dominates either way.
+  Batching still does no harm, and keeps the behaviour identical
+  across platforms.
+
+You can measure the difference on your own machine with
+`benchmark_conversion.py` (see below).
+
+When the script finishes you'll see a line like:
+
+```
+Done in 42.3s (~0.42s per converted file). Converted: 100, skipped: 0, failed: 0.
+```
+
+so you can see exactly how long the run took.
+
+### Measuring it yourself
+
+`benchmark_conversion.py` runs both strategies (per-file vs batch) on
+the same files and reports the speedup. It uses the same conversion
+backend as the main workflow — Microsoft Word on Windows/macOS,
+LibreOffice on Linux — so it works on every platform. Run it after
+step 1 has produced some .docx files:
+
+```
+python benchmark_conversion.py
+```
+
+Or, to do a quick check with only the first 10 files:
+
+```
+python benchmark_conversion.py --limit 10
+```
+
+You'll get output similar to:
+
+```
+Benchmarking with 10 of 100 .docx file(s) from 'signatures_docx'.
+
+Strategy 1: per-file convert() calls...
+  Total: 52.4s — 5.24s per file
+
+Strategy 2: single batch convert() call...
+  Total: 8.7s — 0.87s per file
+
+Batch is 6.0× faster — saved 43.7s on 10 file(s).
+```
+
+---
+
+## Running the tests (for developers)
+
+The project ships with a small `pytest` test suite covering the pure
+helpers (CSV reading, column-width scaling, document construction,
+file discovery). The tests don't require Microsoft Word or LibreOffice
+to be installed — the conversion call itself is not unit-tested.
+
+To run them (with the virtual environment from
+[Quick start](#quick-start) active):
+
+```
+pip install -r test_requirements.txt
+python -m pytest
+```
+
+A successful run looks like:
+
+```
+======================== test session starts ========================
+collected 27 items
+
+tests/test_convert_docx_to_pdf.py ................                [ 59%]
+tests/test_split_signatures.py ...........                       [100%]
+
+======================== 27 passed in 0.6s ==========================
+```
+
+---
+
+## Troubleshooting
+
+- **`file '…' not found in this folder`** — the CSV must be in the
+  same folder as the script and the name must match exactly.
+- **`Could not parse '…' as a multi-column CSV`** — open the file in
+  a text editor and check that columns are separated by commas,
+  semicolons, tabs, or `|`. Re-save as UTF-8 if possible.
+- **`folder '…' not found`** when running step 2 — run step 1 first
+  so that `signatures_docx/` gets created.
+- **"Skipping N Word lock file(s)"** — the script found one or more
+  `~$<name>.docx` files in `signatures_docx/`. These are temporary
+  lock files Word creates while a document is open, not real `.docx`
+  files. Close Word and they'll disappear. The script already skips
+  them, so this is just informational.
+- **`ERROR: the 'docx2pdf' package isn't installed`** (Windows/macOS)
+  — run `pip install -r requirements.txt`.
+- **`ERROR: LibreOffice not found`** (Linux) — install it with
+  `sudo apt install libreoffice`. On Linux the conversion uses
+  LibreOffice, not `docx2pdf`/Word.
+- **Step 2 hangs or errors out** — the conversion tool for your
+  platform (Microsoft Word on Windows/macOS, LibreOffice on Linux)
+  must be installed and able to open .docx files. On Windows, close
+  any open Word windows before running.
+- **`error: externally-managed-environment`** (Linux) — your
+  distribution blocks installing packages into the system Python. Use
+  the virtual environment shown in [Quick start](#quick-start)
+  (`python3 -m venv .venv && source .venv/bin/activate`) and run `pip`
+  inside it.
+- **`pip` is not recognised** — Python wasn't added to PATH. Re-install
+  Python and tick *"Add Python to PATH"*, or use `py -m pip …`
+  instead.
+
+If your problem isn't here, paste the error and the relevant script
+into an AI assistant (Claude, ChatGPT, etc.) — it can usually
+diagnose it from the script and the message alone.
+
+---
+
+## Folder layout
+
+```
+paper_submission/
+├── README.md
+├── .gitignore
+├── requirements.txt
+├── test_requirements.txt                   (extras for running tests)
+├── split_signatures_into_folders.py
+├── convert_docx_to_pdf.py
+├── benchmark_conversion.py                 (optional, for measuring speed)
+├── tests/
+│   ├── conftest.py
+│   ├── test_split_signatures.py
+│   └── test_convert_docx_to_pdf.py
+├── Signatures_from_the_database_raw.csv    (your input)
+├── signatures_docx/                        (auto-created by step 1)
+│   ├── Папка 1 с подписи от ... до ....docx
+│   ├── Папка 2 с подписи от ... до ....docx
+│   └── ...
+└── signatures_pdf/                         (auto-created by step 2)
+    ├── Папка 1 с подписи от ... до ....pdf
+    ├── Папка 2 с подписи от ... до ....pdf
+    └── ...
+```
+
+> The `.venv/` folder and the generated `signatures_docx/` and
+> `signatures_pdf/` folders are excluded from version control via
+> `.gitignore`.
+
+The older `ForSubmittingSignatures2.py` is not used by this workflow
+but can be kept in a `legacy/` subfolder for reference.
