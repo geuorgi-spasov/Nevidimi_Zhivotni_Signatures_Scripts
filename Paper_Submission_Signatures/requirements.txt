@@ -1,0 +1,7 @@
+pandas>=1.5
+python-docx>=0.8.11
+
+# PDF conversion backend for Windows / macOS (drives Microsoft Word).
+# On Linux this package is not used — install LibreOffice instead
+# (e.g. `sudo apt install libreoffice`); see the README.
+docx2pdf>=0.1.8 ; sys_platform == "win32" or sys_platform == "darwin"
